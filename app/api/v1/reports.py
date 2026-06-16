@@ -36,7 +36,15 @@ async def get_accessible_project_ids(current_user: User) -> list[str]:
     return [str(p.id) for p in projects]
 
 
-@router.get("/user", response_model=list[ReportItem])
+@router.get(
+    "/user",
+    response_model=list[ReportItem],
+    summary="گزارش زمان به تفکیک کاربر",
+    description=(
+        "مجموع زمان کارکرد (ثانیه) هر کاربر را در بازه `from` تا `to` برمی‌گرداند. "
+        "فقط پروژه‌های workspaceهای قابل دسترس کاربر جاری لحاظ می‌شوند."
+    ),
+)
 async def user_report(
     current_user: CurrentUser,
     from_date: date = Query(..., alias="from"),
@@ -68,7 +76,15 @@ async def user_report(
     return result
 
 
-@router.get("/project", response_model=list[ReportItem])
+@router.get(
+    "/project",
+    response_model=list[ReportItem],
+    summary="گزارش زمان به تفکیک پروژه",
+    description=(
+        "مجموع زمان کارکرد (ثانیه) هر پروژه را در بازه `from` تا `to` برمی‌گرداند. "
+        "فقط پروژه‌های workspaceهای قابل دسترس کاربر جاری لحاظ می‌شوند."
+    ),
+)
 async def project_report(
     current_user: CurrentUser,
     from_date: date = Query(..., alias="from"),
@@ -100,7 +116,15 @@ async def project_report(
     return result
 
 
-@router.get("/daily", response_model=DailyReport)
+@router.get(
+    "/daily",
+    response_model=DailyReport,
+    summary="گزارش روزانه",
+    description=(
+        "خلاصه زمان کارکرد کاربر جاری در یک روز مشخص. "
+        "شامل مجموع کل و تفکیک به تفکیک پروژه. پارامتر `date` با فرمت `YYYY-MM-DD`."
+    ),
+)
 async def daily_report(
     current_user: CurrentUser,
     date: date = Query(...),

@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 
 from app.api.v1.projects import get_project_or_404
 from app.api.v1.workspace import get_workspace_or_404, has_workspace_access
+from app.core.ids import ensure_valid_object_id
 from app.dependencies import CurrentUser
 from app.models.time_entry import TimeEntry
 from app.schemas.time_entry import TimeEntryRead, TimeEntryStart, TimeEntryUpdate
@@ -12,6 +13,7 @@ router = APIRouter(prefix="/time-entry", tags=["time-entry"])
 
 
 async def get_time_entry_or_404(entry_id: str) -> TimeEntry:
+    ensure_valid_object_id(entry_id, "Time entry")
     entry = await TimeEntry.get(entry_id)
     if entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Time entry not found")
@@ -25,11 +27,22 @@ async def ensure_project_access(project_id: str, current_user: CurrentUser) -> N
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
 
-@router.post("/start", response_model=TimeEntryRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/start",
+    response_model=TimeEntryRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="شروع تایمر",
+    description=(
+        "تایمر جدید برای یک پروژه شروع می‌کند. `start` برابر زمان فعلی UTC ثبت می‌شود. "
+        "هر کاربر فقط یک تایمر فعال هم‌زمان می‌تواند داشته باشد. "
+        "بدنه: `{ \"project_id\": \"...\", \"description\": \"...\" }`."
+    ),
+)
 async def start_time_entry(
     payload: TimeEntryStart,
     current_user: CurrentUser,
 ) -> TimeEntry:
+    ensure_valid_object_id(payload.project_id, "Project")
     await ensure_project_access(payload.project_id, current_user)
 
     running = await TimeEntry.find_one(
@@ -52,7 +65,15 @@ async def start_time_entry(
     return entry
 
 
-@router.post("/stop", response_model=TimeEntryRead)
+@router.post(
+    "/stop",
+    response_model=TimeEntryRead,
+    summary="توقف تایمر فعال",
+    description=(
+        "تایمر در حال اجرای کاربر جاری را متوقف می‌کند. "
+        "`end` و `duration` (بر حسب ثانیه) به‌صورت خودکار محاسبه و ذخیره می‌شود."
+    ),
+)
 async def stop_time_entry(current_user: CurrentUser) -> TimeEntry:
     entry = await TimeEntry.find_one(
         TimeEntry.user_id == str(current_user.id),
@@ -67,7 +88,15 @@ async def stop_time_entry(current_user: CurrentUser) -> TimeEntry:
     return entry
 
 
-@router.get("", response_model=list[TimeEntryRead])
+@router.get(
+    "",
+    response_model=list[TimeEntryRead],
+    summary="لیست ثبت زمان‌های یک روز",
+    description=(
+        "همه time entryهای کاربر جاری در تاریخ مشخص‌شده را برمی‌گرداند. "
+        "پارامتر `date` با فرمت `YYYY-MM-DD` اجباری است."
+    ),
+)
 async def list_time_entries(
     current_user: CurrentUser,
     date: date = Query(..., description="YYYY-MM-DD"),
@@ -82,7 +111,15 @@ async def list_time_entries(
     ).to_list()
 
 
-@router.put("/{entry_id}", response_model=TimeEntryRead)
+@router.put(
+    "/{entry_id}",
+    response_model=TimeEntryRead,
+    summary="ویرایش time entry",
+    description=(
+        "ثبت زمان را ویرایش می‌کند. فقط صاحب همان entry مجاز است. "
+        "اگر `end` تنظیم شود، `duration` دوباره محاسبه می‌شود."
+    ),
+)
 async def update_time_entry(
     entry_id: str,
     payload: TimeEntryUpdate,
@@ -108,7 +145,12 @@ async def update_time_entry(
     return entry
 
 
-@router.delete("/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{entry_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="حذف time entry",
+    description="یک ثبت زمان را حذف می‌کند. فقط صاحب همان entry مجاز است.",
+)
 async def delete_time_entry(
     entry_id: str,
     current_user: CurrentUser,

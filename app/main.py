@@ -29,6 +29,10 @@ app.include_router(time_entry_router, prefix=API_PREFIX)
 app.include_router(reports_router, prefix=API_PREFIX)
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="بررسی سلامت سرویس",
+    description="وضعیت API را برمی‌گرداند. برای مانیتورینگ و اطمینان از بالا بودن سرور استفاده می‌شود.",
+)
 async def health_check() -> dict[str, str]:
     return {"status": "ok"}
