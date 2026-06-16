@@ -1,31 +1,27 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
+
+from app.schemas.common import DocumentRead
 
 
-class TimeEntryBase(BaseModel):
-    description: str
-    start_time: datetime
-    end_time: datetime | None = None
-    team_id: str | None = None
-
-
-class TimeEntryCreate(TimeEntryBase):
-    pass
+class TimeEntryStart(BaseModel):
+    project_id: str
+    description: str = ""
 
 
 class TimeEntryUpdate(BaseModel):
+    project_id: str | None = None
+    start: datetime | None = None
+    end: datetime | None = None
     description: str | None = None
-    start_time: datetime | None = None
-    end_time: datetime | None = None
-    team_id: str | None = None
 
 
-class TimeEntryRead(TimeEntryBase):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
+class TimeEntryRead(DocumentRead):
     user_id: str
-    duration_minutes: int | None = None
+    project_id: str
+    start: datetime
+    end: datetime | None = None
+    duration: int | None = None
+    description: str
     created_at: datetime
-    updated_at: datetime

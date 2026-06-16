@@ -1,3 +1,5 @@
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -8,7 +10,7 @@ from app.dependencies import (
     verify_password,
 )
 from app.models.user import User
-from app.schemas.auth import Token
+from app.schemas.auth import LoginRequest, Token
 from app.schemas.user import UserCreate, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -24,8 +26,8 @@ async def register(payload: UserCreate) -> User:
         )
 
     user = User(
-        email=payload.email,
-        full_name=payload.full_name,
+        email=payload.email.strip().lower(),
+        fullname=payload.fullname.strip(),
         hashed_password=get_password_hash(payload.password),
     )
     await user.insert()
@@ -34,18 +36,36 @@ async def register(payload: UserCreate) -> User:
 
 @router.post("/login", response_model=Token)
 async def login(form_data: OAuth2PasswordRequestForm = Depends()) -> Token:
-    user = await User.find_one(User.email == form_data.username)
-    if user is None or not verify_password(form_data.password, user.hashed_password):
+    # Swagger OAuth2 form uses "username" — accept email or fullname
+    return await _authenticate(form_data.username, form_data.password)
+
+
+@router.post("/login/json", response_model=Token)
+async def login_json(payload: LoginRequest) -> Token:
+    return await _authenticate(payload.email, payload.password)
+
+
+async def _find_user(identifier: str) -> User | None:
+    identifier = identifier.strip()
+    if not identifier:
+        return None
+
+    user = await User.find_one(User.email == identifier.lower())
+    if user is not None:
+        return user
+
+    return await User.find_one(
+        {"fullname": {"$regex": f"^{re.escape(identifier)}$", "$options": "i"}}
+    )
+
+
+async def _authenticate(identifier: str, password: str) -> Token:
+    user = await _find_user(identifier)
+    if user is None or not verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user",
         )
 
     return Token(access_token=create_access_token(str(user.id)))

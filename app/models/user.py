@@ -1,23 +1,12 @@
-from datetime import datetime
-from enum import Enum
-
-from beanie import Document, Indexed, Link
+from beanie import Document, Indexed
 from pydantic import EmailStr, Field
 
 
-class UserRole(str, Enum):
-    ADMIN = "admin"
-    MEMBER = "member"
-
-
 class User(Document):
+    fullname: str
     email: Indexed(EmailStr, unique=True)
-    full_name: str
     hashed_password: str
-    role: UserRole = UserRole.MEMBER
-    is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    workspace_ids: list[str] = Field(default_factory=list)
 
     class Settings:
         name = "users"
