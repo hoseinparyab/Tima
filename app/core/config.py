@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     mongodb_url: str = "mongodb://localhost:27017"
     mongodb_db: str = "tima"
     secret_key: str
-    access_token_expire_minutes: int = 30
+    access_token_expire_minutes: int = 1440  # 24 hours
     algorithm: str = "HS256"
 
 
